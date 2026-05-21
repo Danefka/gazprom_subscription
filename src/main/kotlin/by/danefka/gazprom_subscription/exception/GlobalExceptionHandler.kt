@@ -126,21 +126,21 @@ class GlobalExceptionHandler {
     }
 
 
-    @ExceptionHandler(RuntimeException::class)
-    fun handleRuntimeException(
-            ex: RuntimeException,
-            request: HttpServletRequest
-    ): ResponseEntity<ErrorResponse> {
-
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(
-                        ErrorResponse(
-                                status = HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                                error = HttpStatus.INTERNAL_SERVER_ERROR.name,
-                                message = ex.message ?: "Internal server error",
-                                path = request.requestURI
-                        )
-                )
-    }
+//    @ExceptionHandler(RuntimeException::class)
+//    fun handleRuntimeException(
+//            ex: RuntimeException,
+//            request: HttpServletRequest
+//    ): ResponseEntity<ErrorResponse> {
+//
+//        return ResponseEntity
+//                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+//                .body(
+//                        ErrorResponse(
+//                                status = HttpStatus.INTERNAL_SERVER_ERROR.value(),
+//                                error = HttpStatus.INTERNAL_SERVER_ERROR.name,
+//                                message = ex.message ?: "Internal server error",
+//                                path = request.requestURI
+//                        )
+//                )
+//    }
 }

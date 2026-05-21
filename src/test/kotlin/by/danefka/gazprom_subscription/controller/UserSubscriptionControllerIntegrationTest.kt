@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.get
+import org.springframework.test.web.servlet.patch
 import org.springframework.test.web.servlet.post
 import java.util.UUID
 
@@ -20,13 +21,13 @@ class UserSubscriptionControllerIntegrationTest : BaseIntegrationTest() {
             contentType = MediaType.APPLICATION_JSON
             content = createSubscriptionJson()
         }
-            .andExpect {
-                status { isOk() }
-                jsonPath("$.id", notNullValue())
-                jsonPath("$.serviceName") { value("Netflix") }
-                jsonPath("$.tariffName") { value("Premium") }
-                jsonPath("$.status") { value("ACTIVE") }
-            }
+                .andExpect {
+                    status { isCreated() }
+                    jsonPath("$.id", notNullValue())
+                    jsonPath("$.serviceName") { value("Netflix") }
+                    jsonPath("$.tariffName") { value("Premium") }
+                    jsonPath("$.status") { value("ACTIVE") }
+                }
     }
 
     @Test
@@ -37,11 +38,11 @@ class UserSubscriptionControllerIntegrationTest : BaseIntegrationTest() {
         mockMvc.get("/subscriptions/$subscriptionId") {
             header(HttpHeaders.AUTHORIZATION, "Bearer $token")
         }
-            .andExpect {
-                status { isOk() }
-                jsonPath("$.id") { value(subscriptionId.toString()) }
-                jsonPath("$.serviceName") { value("Netflix") }
-            }
+                .andExpect {
+                    status { isOk() }
+                    jsonPath("$.id") { value(subscriptionId.toString()) }
+                    jsonPath("$.serviceName") { value("Netflix") }
+                }
     }
 
     @Test
@@ -52,11 +53,11 @@ class UserSubscriptionControllerIntegrationTest : BaseIntegrationTest() {
         mockMvc.get("/subscriptions/my/active") {
             header(HttpHeaders.AUTHORIZATION, "Bearer $token")
         }
-            .andExpect {
-                status { isOk() }
-                jsonPath("$[0].serviceName") { value("Netflix") }
-                jsonPath("$[0].status") { value("ACTIVE") }
-            }
+                .andExpect {
+                    status { isOk() }
+                    jsonPath("$[0].serviceName") { value("Netflix") }
+                    jsonPath("$[0].status") { value("ACTIVE") }
+                }
     }
 
     @Test
@@ -64,13 +65,35 @@ class UserSubscriptionControllerIntegrationTest : BaseIntegrationTest() {
         val token = registerAndGetToken("sub-pause@test.com")
         val subscriptionId = createSubscriptionAndGetId(token)
 
-        mockMvc.post("/subscriptions/$subscriptionId/pause") {
+        mockMvc.patch("/subscriptions/$subscriptionId/pause") {
             header(HttpHeaders.AUTHORIZATION, "Bearer $token")
         }
-            .andExpect {
-                status { isOk() }
-                jsonPath("$.status") { value("PAUSED") }
-            }
+                .andExpect {
+                    status { isOk() }
+                    jsonPath("$.status") { value("PAUSED") }
+                }
+    }
+
+    @Test
+    fun `should resume subscription`() {
+        val token = registerAndGetToken("sub-resume@test.com")
+        val subscriptionId = createSubscriptionAndGetId(token)
+
+        mockMvc.patch("/subscriptions/$subscriptionId/pause") {
+            header(HttpHeaders.AUTHORIZATION, "Bearer $token")
+        }
+                .andExpect {
+                    status { isOk() }
+                    jsonPath("$.status") { value("PAUSED") }
+                }
+
+        mockMvc.patch("/subscriptions/$subscriptionId/resume") {
+            header(HttpHeaders.AUTHORIZATION, "Bearer $token")
+        }
+                .andExpect {
+                    status { isOk() }
+                    jsonPath("$.status") { value("ACTIVE") }
+                }
     }
 
     @Test
@@ -78,13 +101,13 @@ class UserSubscriptionControllerIntegrationTest : BaseIntegrationTest() {
         val token = registerAndGetToken("sub-cancel@test.com")
         val subscriptionId = createSubscriptionAndGetId(token)
 
-        mockMvc.post("/subscriptions/$subscriptionId/cancel") {
+        mockMvc.patch("/subscriptions/$subscriptionId/cancel") {
             header(HttpHeaders.AUTHORIZATION, "Bearer $token")
         }
-            .andExpect {
-                status { isOk() }
-                jsonPath("$.status") { value("CANCELED") }
-            }
+                .andExpect {
+                    status { isOk() }
+                    jsonPath("$.status") { value("CANCELED") }
+                }
     }
 
     @Test
@@ -97,10 +120,10 @@ class UserSubscriptionControllerIntegrationTest : BaseIntegrationTest() {
         mockMvc.get("/subscriptions/$subscriptionId") {
             header(HttpHeaders.AUTHORIZATION, "Bearer $anotherUserToken")
         }
-            .andExpect {
-                status { isForbidden() }
-                jsonPath("$.message") { value("Access denied") }
-            }
+                .andExpect {
+                    status { isForbidden() }
+                    jsonPath("$.message") { value("Access denied") }
+                }
     }
 
     @Test
@@ -109,10 +132,10 @@ class UserSubscriptionControllerIntegrationTest : BaseIntegrationTest() {
             contentType = MediaType.APPLICATION_JSON
             content = createSubscriptionJson()
         }
-            .andExpect {
-                status { isUnauthorized() }
-                jsonPath("$.message") { value("Authentication required") }
-            }
+                .andExpect {
+                    status { isUnauthorized() }
+                    jsonPath("$.message") { value("Authentication required") }
+                }
     }
 
     private fun createSubscriptionAndGetId(token: String): UUID {
@@ -121,17 +144,17 @@ class UserSubscriptionControllerIntegrationTest : BaseIntegrationTest() {
             contentType = MediaType.APPLICATION_JSON
             content = createSubscriptionJson()
         }
-            .andExpect {
-                status { isOk() }
-                jsonPath("$.id", notNullValue())
-            }
-            .andReturn()
-            .response
-            .contentAsString
+                .andExpect {
+                    status { isCreated() }
+                    jsonPath("$.id", notNullValue())
+                }
+                .andReturn()
+                .response
+                .contentAsString
 
         val id = response
-            .substringAfter("\"id\":\"")
-            .substringBefore("\"")
+                .substringAfter("\"id\":\"")
+                .substringBefore("\"")
 
         return UUID.fromString(id)
     }

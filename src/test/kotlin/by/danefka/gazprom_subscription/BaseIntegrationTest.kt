@@ -9,31 +9,26 @@ import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.post
 import org.testcontainers.containers.PostgreSQLContainer
-import org.testcontainers.junit.jupiter.Container
-import org.testcontainers.junit.jupiter.Testcontainers
 
 @SpringBootTest
-@Testcontainers
 @AutoConfigureMockMvc
 abstract class BaseIntegrationTest {
 
     companion object {
 
-        @Container
-        @ServiceConnection
         @JvmStatic
-        val postgres = PostgreSQLContainer("postgres:16")
+        @ServiceConnection
+        val postgres: PostgreSQLContainer<*> = PostgreSQLContainer("postgres:16").apply {
+            start()
+        }
     }
 
     @Autowired
     protected lateinit var mockMvc: MockMvc
 
     protected fun registerAndGetToken(email: String): String {
-
         val response = mockMvc.post("/auth/register") {
-
             contentType = MediaType.APPLICATION_JSON
-
             content = """
                 {
                   "email": "$email",
@@ -42,7 +37,7 @@ abstract class BaseIntegrationTest {
             """.trimIndent()
         }
                 .andExpect {
-                    status { isOk() }
+                    status { isCreated() }
                     jsonPath("$.token", notNullValue())
                 }
                 .andReturn()
