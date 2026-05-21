@@ -1,0 +1,27 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-insert-admin-user
+      author: danefka
+      changes:
+        - insert:
+            tableName: users
+            columns:
+              - column:
+                  name: id
+                  value: "00000000-0000-0000-0000-000000000001"
+
+              - column:
+                  name: email
+                  value: "danefka@example.com"
+
+              - column:
+                  name: password
+                  value: "$2a$10$zQDDLfQYb4YXz0bXX8TH1e8RnBYG/l6ZciKvI2iiEDzCKEGyj43SG"
+
+              - column:
+                  name: role
+                  value: "ADMIN"
+
+              - column:
+                  name: created_at
+                  valueComputed: CURRENT_TIMESTAMP

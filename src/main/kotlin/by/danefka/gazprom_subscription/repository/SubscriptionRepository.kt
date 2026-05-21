@@ -13,8 +13,6 @@ interface SubscriptionRepository :
         JpaRepository<Subscription, UUID>,
         JpaSpecificationExecutor<Subscription> {
 
-    fun findAllByUser(user: User): List<Subscription>
-
     fun findAllByUserAndStatus(
             user: User,
             status: SubscriptionStatus

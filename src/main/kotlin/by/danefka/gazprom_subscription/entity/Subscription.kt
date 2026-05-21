@@ -22,7 +22,9 @@ class Subscription(
         @Column(nullable = false)
         var serviceName: String,
 
-        var tariffName: String? = null,
+
+        @Column(nullable = false)
+        var tariffName: String,
 
         @Column(nullable = false)
         var price: BigDecimal,
