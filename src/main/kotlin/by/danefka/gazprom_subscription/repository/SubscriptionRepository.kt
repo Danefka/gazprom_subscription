@@ -6,12 +6,18 @@ import by.danefka.gazprom_subscription.enum.SubscriptionStatus
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor
 import org.springframework.stereotype.Repository
+import java.time.LocalDate
 import java.util.UUID
 
 @Repository
 interface SubscriptionRepository :
         JpaRepository<Subscription, UUID>,
         JpaSpecificationExecutor<Subscription> {
+
+    fun findAllByStatusInAndEndDateBefore(
+            statuses: Collection<SubscriptionStatus>,
+            endDate: LocalDate
+    ): List<Subscription>
 
     fun findAllByUserAndStatus(
             user: User,

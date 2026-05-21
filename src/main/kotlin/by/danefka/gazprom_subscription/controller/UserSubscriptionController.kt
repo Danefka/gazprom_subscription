@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*
 import java.util.*
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.http.ResponseEntity
 
 @RestController
 @RequestMapping("/subscriptions")
@@ -57,5 +58,10 @@ class UserSubscriptionController(
             @PathVariable id: UUID
     ): SubscriptionResponse {
         return subscriptionService.cancel(id)
+    }
+
+    @PatchMapping("/{id}/resume")
+    fun resume(@PathVariable id: UUID): ResponseEntity<SubscriptionResponse> {
+        return ResponseEntity.ok(subscriptionService.resume(id))
     }
 }

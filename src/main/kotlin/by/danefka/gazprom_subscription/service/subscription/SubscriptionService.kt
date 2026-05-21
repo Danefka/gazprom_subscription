@@ -34,4 +34,6 @@ interface SubscriptionService {
             id: UUID,
             request: UpdateSubscriptionStatusRequest
     ): SubscriptionResponse
+
+    fun resume(id: UUID): SubscriptionResponse
 }

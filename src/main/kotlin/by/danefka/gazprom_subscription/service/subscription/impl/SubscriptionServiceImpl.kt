@@ -2,12 +2,15 @@ package by.danefka.gazprom_subscription.service.subscription.impl
 
 import by.danefka.gazprom_subscription.dto.subscription.*
 import by.danefka.gazprom_subscription.entity.Subscription
+import by.danefka.gazprom_subscription.entity.SubscriptionStatusHistory
+import by.danefka.gazprom_subscription.enum.StatusChangeReason
 import by.danefka.gazprom_subscription.enum.SubscriptionStatus
 import by.danefka.gazprom_subscription.exception.exceptions.BusinessRuleException
 import by.danefka.gazprom_subscription.exception.exceptions.ForbiddenException
 import by.danefka.gazprom_subscription.exception.exceptions.NotFoundException
 import by.danefka.gazprom_subscription.mapper.SubscriptionMapper
 import by.danefka.gazprom_subscription.repository.SubscriptionRepository
+import by.danefka.gazprom_subscription.repository.SubscriptionStatusHistoryRepository
 import by.danefka.gazprom_subscription.security.CurrentUserService
 import by.danefka.gazprom_subscription.service.subscription.SubscriptionService
 import by.danefka.gazprom_subscription.specification.SubscriptionSpecification
@@ -16,15 +19,16 @@ import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.util.UUID
 
 @Service
 class SubscriptionServiceImpl(
         private val subscriptionRepository: SubscriptionRepository,
         private val currentUserService: CurrentUserService,
-        private val subscriptionMapper: SubscriptionMapper
+        private val subscriptionMapper: SubscriptionMapper,
+        private val subscriptionStatusHistoryRepository: SubscriptionStatusHistoryRepository
 ) : SubscriptionService {
-
     @Transactional
     override fun create(request: CreateSubscriptionRequest): SubscriptionResponse {
         validateDates(request.startDate, request.endDate)
@@ -41,9 +45,16 @@ class SubscriptionServiceImpl(
                 status = SubscriptionStatus.ACTIVE
         )
 
-        return subscriptionMapper.toResponse(
-                subscriptionRepository.save(subscription)
+        val savedSubscription = subscriptionRepository.save(subscription)
+
+        saveStatusHistory(
+                subscription = savedSubscription,
+                oldStatus = null,
+                newStatus = SubscriptionStatus.ACTIVE,
+                reason = StatusChangeReason.CREATED
         )
+
+        return subscriptionMapper.toResponse(savedSubscription)
     }
 
     @Transactional(readOnly = true)
@@ -92,11 +103,21 @@ class SubscriptionServiceImpl(
             throw BusinessRuleException("Only active subscription can be paused")
         }
 
-        subscription.status = SubscriptionStatus.PAUSED
+        val oldStatus = subscription.status
 
-        return subscriptionMapper.toResponse(
-                subscriptionRepository.save(subscription)
+        subscription.status = SubscriptionStatus.PAUSED
+        subscription.updatedAt = LocalDateTime.now()
+
+        val savedSubscription = subscriptionRepository.save(subscription)
+
+        saveStatusHistory(
+                subscription = savedSubscription,
+                oldStatus = oldStatus,
+                newStatus = SubscriptionStatus.PAUSED,
+                reason = StatusChangeReason.PAUSED
         )
+
+        return subscriptionMapper.toResponse(savedSubscription)
     }
 
     @Transactional
@@ -111,11 +132,21 @@ class SubscriptionServiceImpl(
             throw BusinessRuleException("Only active or paused subscription can be canceled")
         }
 
-        subscription.status = SubscriptionStatus.CANCELED
+        val oldStatus = subscription.status
 
-        return subscriptionMapper.toResponse(
-                subscriptionRepository.save(subscription)
+        subscription.status = SubscriptionStatus.CANCELED
+        subscription.updatedAt = LocalDateTime.now()
+
+        val savedSubscription = subscriptionRepository.save(subscription)
+
+        saveStatusHistory(
+                subscription = savedSubscription,
+                oldStatus = oldStatus,
+                newStatus = SubscriptionStatus.CANCELED,
+                reason = StatusChangeReason.CANCELLED
         )
+
+        return subscriptionMapper.toResponse(savedSubscription)
     }
 
     @Transactional(readOnly = true)
@@ -145,13 +176,59 @@ class SubscriptionServiceImpl(
     ): SubscriptionResponse {
         val subscription = findSubscriptionById(id)
 
-        validateStatusTransition(subscription.status, request.status)
+        val oldStatus = subscription.status
+        val newStatus = request.status
 
-        subscription.status = request.status
+        validateStatusTransition(oldStatus, newStatus)
 
-        return subscriptionMapper.toResponse(
-                subscriptionRepository.save(subscription)
+        if (oldStatus == newStatus) {
+            return subscriptionMapper.toResponse(subscription)
+        }
+
+        subscription.status = newStatus
+        subscription.updatedAt = LocalDateTime.now()
+
+        val savedSubscription = subscriptionRepository.save(subscription)
+
+        saveStatusHistory(
+                subscription = savedSubscription,
+                oldStatus = oldStatus,
+                newStatus = newStatus,
+                reason = StatusChangeReason.UPDATED_BY_ADMIN
         )
+
+        return subscriptionMapper.toResponse(savedSubscription)
+    }
+
+    @Transactional
+    override fun resume(id: UUID): SubscriptionResponse {
+        val subscription = findSubscriptionById(id)
+
+        checkOwner(subscription)
+
+        if (subscription.status != SubscriptionStatus.PAUSED) {
+            throw BusinessRuleException("Only paused subscription can be resumed")
+        }
+
+        if (subscription.endDate.isBefore(LocalDate.now())) {
+            throw BusinessRuleException("Expired subscription cannot be resumed without renewal")
+        }
+
+        val oldStatus = subscription.status
+
+        subscription.status = SubscriptionStatus.ACTIVE
+        subscription.updatedAt = LocalDateTime.now()
+
+        val savedSubscription = subscriptionRepository.save(subscription)
+
+        saveStatusHistory(
+                subscription = savedSubscription,
+                oldStatus = oldStatus,
+                newStatus = SubscriptionStatus.ACTIVE,
+                reason = StatusChangeReason.RESUMED
+        )
+
+        return subscriptionMapper.toResponse(savedSubscription)
     }
 
     private fun findSubscriptionById(id: UUID): Subscription {
@@ -198,5 +275,21 @@ class SubscriptionServiceImpl(
         ) {
             throw BusinessRuleException("Expired subscription cannot be paused")
         }
+    }
+
+    private fun saveStatusHistory(
+            subscription: Subscription,
+            oldStatus: SubscriptionStatus?,
+            newStatus: SubscriptionStatus,
+            reason: StatusChangeReason
+    ) {
+        subscriptionStatusHistoryRepository.save(
+                SubscriptionStatusHistory(
+                        subscription = subscription,
+                        oldStatus = oldStatus,
+                        newStatus = newStatus,
+                        reason = reason
+                )
+        )
     }
 }
