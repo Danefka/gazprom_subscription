@@ -17,6 +17,11 @@ spring:
     enabled: true
     change-log: classpath:db/changelog/db.changelog-master.yaml
 
+springdoc:
+  swagger-ui:
+    operations-sorter: alpha
+    tags-sorter: alpha
+
 jwt:
   secret: "94205da9146824d531ba1818eb3a0c36c63b2cddedec59cfbdf965643c851b6e"
   expiration: 86400000
